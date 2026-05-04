@@ -12,7 +12,6 @@ from collections import OrderedDict
 from typing import Any, Dict, List, Set
 
 import torch
-from fvcore.nn import FlopCountAnalysis, flop_count_str
 
 import detectron2.utils.comm as comm
 from detectron2.checkpoint import DetectionCheckpointer
@@ -300,57 +299,6 @@ def main(args):
         DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
             cfg.MODEL.WEIGHTS, resume=args.resume
         )
-        # --- GFLOPs & Params 统计 ---
-        try:
-            
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            model.to(device)
-            model.eval()
-
-            # 决定用于计算的输入分辨率，优先使用 cfg 配置
-            try:
-                min_size = cfg.INPUT.MIN_SIZE_TEST
-                if isinstance(min_size, (list, tuple)):
-                    H = W = int(min_size[0])
-                else:
-                    H = W = int(min_size)
-            except Exception:
-                # fallback to common 384x384
-                H = W = 384
-
-            # wrapper: FlopCountAnalysis 需要一个 tensor 输入流，model.forward 接受 list[dict]
-            class _FlopModelWrapper(torch.nn.Module):
-                def __init__(self, model):
-                    super().__init__()
-                    self.model = model
-                def forward(self, x):
-                    # x: [B,3,H,W]
-                    batch = []
-                    for i in range(x.shape[0]):
-                        batch.append({"image": x[i], "height": H, "width": W})
-                    # model may expect images on same device
-                    return self.model(batch)
-            print(88888888888888888888888888888)
-            wrapper = _FlopModelWrapper(model).to(device)
-            dummy = torch.randn(1, 3, H, W, device=device)
-            flops = FlopCountAnalysis(wrapper, dummy)
-            total_flops = flops.total()
-            print(f"Model GFLOPs (approx): {total_flops / 1e9:.4f} GFLOPs")
-            print(999999999999999999999999999999)
-            try:
-                print(flop_count_str(flops))
-            except Exception:
-                print(99999999999999999911111111111111111)
-                pass
-        except Exception as e:
-            print("Warning: failed to compute FLOPs:", e)
-
-        try:
-            total_params = sum(p.numel() for p in model.parameters())
-            print(f"Model params: {total_params} ({total_params/1e6:.3f} M)")
-        except Exception as e:
-            print("Warning: failed to compute params:", e)
-
         res = Trainer.test(cfg, model)
         if cfg.TEST.AUG.ENABLED:
             res.update(Trainer.test_with_TTA(cfg, model))
@@ -361,6 +309,7 @@ def main(args):
     trainer = Trainer(cfg)
     trainer.resume_or_load(resume=args.resume)
     return trainer.train()
+
 
 if __name__ == "__main__":
     args = default_argument_parser().parse_args()
