@@ -6,7 +6,7 @@ The Utilized OVS Datasets (DLRSD, iSAID, Potsdam, Vaihingen)
 (Password:sjtu)
 
 detectron2 is required to install
-
+detailed RotDiffSeg is here: https://github.com/NWPUFranklee/RotDiffSeg.git
 
 ## How to train our model
 python3 train_net.py --config-file configs/vitb_384.yaml
